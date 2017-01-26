@@ -7,6 +7,7 @@ import boto.ec2.cloudwatch
 import boto.elasticache
 import boto.rds
 import sys
+import time
 
 # Handle arguments
 parser = argparse.ArgumentParser(description='Automatically create alerts')
@@ -75,6 +76,7 @@ def apply_alarms(instance_id, cloudwatch_connection, instance_metrics, compariso
                                        evaluation_periods=evaluation_periods,
                                        statistic=statistic,
                                        alarm_actions=[sns_topic])
+                time.sleep(0.5)
 
 
 if __name__ == '__main__':
@@ -83,7 +85,7 @@ if __name__ == '__main__':
     # EC2 Instances
     # Note: DiskSpaceUtilization is a custom metric; you'd need to roll your own to get that.
     for instance_id in get_ec2_instances(profile_name):
-        apply_alarms(instance_id, cw, "CPUCreditBalance", comparison="<=", threshold=50, force=True)
+        apply_alarms(instance_id, cw, "CPUCreditBalance", comparison="<=", threshold=50)
         apply_alarms(instance_id, cw, "StatusCheckFailed")
         apply_alarms(instance_id, cw, "MemoryUtilization", threshold=80)
         apply_alarms(instance_id, cw, "DiskSpaceUtilization", threshold=80)
