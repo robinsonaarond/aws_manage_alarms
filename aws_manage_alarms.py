@@ -73,12 +73,20 @@ def get_rds_instances(profile_name):
         rds_instances.append(str(instance.id))
     return rds_instances
 
+def get_alarms(cloudwatch_connection):
+    alarm_obj = cloudwatch_connection.describe_alarms()
+    active_alarms = [ x.name for x in alarm_obj ]
+    # describe_alarms paginates so we have to take effort to get them all
+    while alarm_obj.next_token:
+        alarm_obj = cloudwatch_connection.describe_alarms(next_token=alarm_obj.next_token)
+        active_alarms += [x.name for x in alarm_obj]
+    return active_alarms
+
 def apply_alarms(instance_id, cloudwatch_connection, instance_metrics,
                  prefix='', comparison=">=", threshold=1, period=60, 
                  evaluation_periods=5, statistic='Average', sns_topic=sns_topic, 
-                 service_type = 'InstanceId', force=False):
+                 service_type = 'InstanceId', active_alarms = [], force=False):
 
-    active_alarms = [ x.name for x in cloudwatch_connection.describe_alarms() ]
     if isinstance(instance_metrics, str):
         instance_metrics = [instance_metrics]
     if isinstance(instance_id, str):
@@ -86,8 +94,10 @@ def apply_alarms(instance_id, cloudwatch_connection, instance_metrics,
     if prefix:
         prefix = '%s-' % prefix
 
+    if len(active_alarms) == 0:
+        active_alarms = get_alarms()
+
     threshold = metric_human_readable(threshold)
-    print "Threshold calculated to be:", threshold
 
     for instance_metric in instance_metrics:
         if len(instance_id) > 1:
@@ -105,7 +115,9 @@ def apply_alarms(instance_id, cloudwatch_connection, instance_metrics,
         else:
             metric = cloudwatch_connection.list_metrics(dimensions={service_type:instance_id}, metric_name=instance_metric)
             if len(metric) > 0:
+                print "Active alarms", len(active_alarms)
                 print "Creating metric for %s (%s): " % (instance_id,metric_name), metric[0]
+                sys.exit(0)
                 metric[0].create_alarm(name=metric_name,
                                        comparison=comparison,
                                        threshold=threshold,
@@ -119,24 +131,27 @@ def apply_alarms(instance_id, cloudwatch_connection, instance_metrics,
 if __name__ == '__main__':
     cw  = boto.ec2.cloudwatch.connect_to_region(region,profile_name=profile_name)
 
+    active_alarms = get_alarms(cw)
+    print "Got %s alarms already configured." % len(active_alarms)
+
     # EC2 Instances
     # Note: DiskSpaceUtilization is a custom metric; you'd need to roll your own to get that.
     for instance_id in get_ec2_instances(profile_name):
-        apply_alarms(instance_id, cw, "CPUCreditBalance", prefix="ec2", comparison="<=", threshold=50)
-        apply_alarms(instance_id, cw, "StatusCheckFailed", prefix="ec2")
-        apply_alarms(instance_id, cw, "MemoryUtilization", prefix="ec2", threshold=80)
-        apply_alarms(instance_id, cw, "DiskSpaceUtilization", prefix="ec2", threshold=80)
+        apply_alarms(instance_id, cw, "CPUCreditBalance", prefix="ec2", active_alarms=active_alarms, comparison="<=", threshold=50)
+        apply_alarms(instance_id, cw, "StatusCheckFailed", prefix="ec2", active_alarms=active_alarms)
+        apply_alarms(instance_id, cw, "MemoryUtilization", prefix="ec2", active_alarms=active_alarms, threshold=80)
+        apply_alarms(instance_id, cw, "DiskSpaceUtilization", prefix="ec2", active_alarms=active_alarms, threshold=80)
     
     # Elasticache
     for cluster_instance in get_elasticache_instances(profile_name):
-        apply_alarms(cluster_instance, cw, "SwapUsage", prefix='elasticache', threshold='1gb', service_type='CacheClusterId')
+        apply_alarms(cluster_instance, cw, "SwapUsage", prefix='elasticache', active_alarms=active_alarms, threshold='1gb', service_type='CacheClusterId')
     
     # RDS
     for db_instance in get_rds_instances(profile_name):
-        apply_alarms(db_instance, cw, "SwapUsage", prefix="rds", threshold='1gb', service_type='DBInstanceIdentifier')
-        apply_alarms(db_instance, cw, "CPUCreditBalance", prefix="rds", comparison="<=", threshold=50, service_type='DBInstanceIdentifier')
-        apply_alarms(db_instance, cw, "FreeStorageSpace", prefix="rds", comparison="<=", threshold=500, service_type='DBInstanceIdentifier')
-        apply_alarms(db_instance, cw, "DatabaseConnections", prefix="rds", threshold=100, service_type='DBInstanceIdentifier')
+        apply_alarms(db_instance, cw, "SwapUsage", prefix="rds", active_alarms=active_alarms, threshold='1gb', service_type='DBInstanceIdentifier')
+        apply_alarms(db_instance, cw, "CPUCreditBalance", prefix="rds", active_alarms=active_alarms, comparison="<=", threshold=50, service_type='DBInstanceIdentifier')
+        apply_alarms(db_instance, cw, "FreeStorageSpace", prefix="rds", active_alarms=active_alarms, comparison="<=", threshold=500, service_type='DBInstanceIdentifier')
+        apply_alarms(db_instance, cw, "DatabaseConnections", prefix="rds", active_alarms=active_alarms, threshold=100, service_type='DBInstanceIdentifier')
         # Investigate: FreeableMemory
 
 
