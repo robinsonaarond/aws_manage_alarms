@@ -112,12 +112,14 @@ def apply_alarms(instance_id, cloudwatch_connection, instance_metrics,
             print "Metric %s is already configured" % metric_name
         elif "test" in metric_name.lower():
             print "Not creating %s; is a test box." % metric_name
+        elif all(x in metric_name.lower() for x in ["ec2", "i-"]):
+            #print "EC2 instance %s is unnamed.  Not important enough to check." % metric_name
+            pass
         else:
             metric = cloudwatch_connection.list_metrics(dimensions={service_type:instance_id}, metric_name=instance_metric)
             if len(metric) > 0:
                 print "Active alarms", len(active_alarms)
                 print "Creating metric for %s (%s): " % (instance_id,metric_name), metric[0]
-                sys.exit(0)
                 metric[0].create_alarm(name=metric_name,
                                        comparison=comparison,
                                        threshold=threshold,
