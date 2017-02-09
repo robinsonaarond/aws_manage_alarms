@@ -116,8 +116,6 @@ def apply_alarms(instance_id, cloudwatch_connection, instance_metrics,
             instance_id = instance_id[0]
             metric_name = "%s-%s%s-%s" % (profile_name,prefix,instance_id,instance_metric)
 
-        print "Metric name:",metric_name
-
         if metric_name in active_alarms and not force:
             print "Metric %s is already configured" % metric_name
         elif "test" in metric_name.lower():
