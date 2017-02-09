@@ -4,6 +4,7 @@ import argparse
 import boto
 import boto.ec2
 import boto.ec2.cloudwatch
+import boto.ec2.elb
 import boto.elasticache
 import boto.rds
 import sys
@@ -73,6 +74,13 @@ def get_rds_instances(profile_name):
         rds_instances.append(str(instance.id))
     return rds_instances
 
+def get_elb_instances(profile_name):
+    elb = boto.ec2.elb.connect_to_region(region,profile_name=profile_name)
+    elb_instances = []
+    for instance in elb.get_all_load_balancers():
+        elb_instances.append(instance.name)
+    return elb_instances
+
 def get_alarms(cloudwatch_connection):
     alarm_obj = cloudwatch_connection.describe_alarms()
     active_alarms = [ x.name for x in alarm_obj ]
@@ -85,11 +93,11 @@ def get_alarms(cloudwatch_connection):
 def apply_alarms(instance_id, cloudwatch_connection, instance_metrics,
                  prefix='', comparison=">=", threshold=1, period=60, 
                  evaluation_periods=5, statistic='Average', sns_topic=sns_topic, 
-                 service_type = 'InstanceId', active_alarms = [], force=False):
+                 dimension_name = 'InstanceId', active_alarms = [], force=False):
 
     if isinstance(instance_metrics, str):
         instance_metrics = [instance_metrics]
-    if isinstance(instance_id, str):
+    if isinstance(instance_id, str) or isinstance(instance_id, unicode):
         instance_id = [instance_id]
     if prefix:
         prefix = '%s-' % prefix
@@ -108,6 +116,8 @@ def apply_alarms(instance_id, cloudwatch_connection, instance_metrics,
             instance_id = instance_id[0]
             metric_name = "%s-%s%s-%s" % (profile_name,prefix,instance_id,instance_metric)
 
+        print "Metric name:",metric_name
+
         if metric_name in active_alarms and not force:
             print "Metric %s is already configured" % metric_name
         elif "test" in metric_name.lower():
@@ -116,7 +126,8 @@ def apply_alarms(instance_id, cloudwatch_connection, instance_metrics,
             #print "EC2 instance %s is unnamed.  Not important enough to check." % metric_name
             pass
         else:
-            metric = cloudwatch_connection.list_metrics(dimensions={service_type:instance_id}, metric_name=instance_metric)
+            metric = cloudwatch_connection.list_metrics(dimensions={dimension_name:instance_id}, metric_name=instance_metric)
+            print "Metric:", metric
             if len(metric) > 0:
                 print "Active alarms", len(active_alarms)
                 print "Creating metric for %s (%s): " % (instance_id,metric_name), metric[0]
@@ -138,23 +149,31 @@ if __name__ == '__main__':
 
     # EC2 Instances
     # Note: DiskSpaceUtilization is a custom metric; you'd need to roll your own to get that.
+    ec2_args = { "prefix": "ec2", "active_alarms": active_alarms }
     for instance_id in get_ec2_instances(profile_name):
-        apply_alarms(instance_id, cw, "CPUCreditBalance", prefix="ec2", active_alarms=active_alarms, comparison="<=", threshold=50)
-        apply_alarms(instance_id, cw, "StatusCheckFailed", prefix="ec2", active_alarms=active_alarms)
-        apply_alarms(instance_id, cw, "MemoryUtilization", prefix="ec2", active_alarms=active_alarms, threshold=80)
+        apply_alarms(instance_id, cw, "CPUCreditBalance", comparison="<=", threshold=50, **ec2_args)
+        apply_alarms(instance_id, cw, "StatusCheckFailed", **ec2_args)
+        apply_alarms(instance_id, cw, "MemoryUtilization", threshold=80, **ec2_args)
         apply_alarms(instance_id, cw, "DiskSpaceUtilization", prefix="ec2", active_alarms=active_alarms, threshold=80)
     
     # Elasticache
     for cluster_instance in get_elasticache_instances(profile_name):
-        apply_alarms(cluster_instance, cw, "SwapUsage", prefix='elasticache', active_alarms=active_alarms, threshold='1gb', service_type='CacheClusterId')
+        apply_alarms(cluster_instance, cw, "SwapUsage", prefix='elasticache', active_alarms=active_alarms, threshold='1gb', dimension_name='CacheClusterId')
     
     # RDS
+    rds_args = { "prefix": "rds", "dimension_name": "DBInstanceIdentifier", "active_alarms": active_alarms }
     for db_instance in get_rds_instances(profile_name):
-        apply_alarms(db_instance, cw, "SwapUsage", prefix="rds", active_alarms=active_alarms, threshold='1gb', service_type='DBInstanceIdentifier')
-        apply_alarms(db_instance, cw, "CPUCreditBalance", prefix="rds", active_alarms=active_alarms, comparison="<=", threshold=50, service_type='DBInstanceIdentifier')
-        apply_alarms(db_instance, cw, "FreeStorageSpace", prefix="rds", active_alarms=active_alarms, comparison="<=", threshold=500, service_type='DBInstanceIdentifier')
-        apply_alarms(db_instance, cw, "DatabaseConnections", prefix="rds", active_alarms=active_alarms, threshold=100, service_type='DBInstanceIdentifier')
+        apply_alarms(db_instance, cw, "SwapUsage", threshold='1gb', **rds_args)
+        apply_alarms(db_instance, cw, "CPUCreditBalance", comparison="<=", threshold=50, **rds_args)
+        apply_alarms(db_instance, cw, "FreeStorageSpace", comparison="<=", threshold=500, **rds_args)
+        apply_alarms(db_instance, cw, "DatabaseConnections", threshold=100, **rds_args)
         # Investigate: FreeableMemory
+
+    # ELB
+    elb_args = { "prefix": "elb", "dimension_name": "LoadBalancerName", "active_alarms": active_alarms }
+    for elb_instance in get_elb_instances(profile_name):
+        print "Instance:", elb_instance
+        apply_alarms(elb_instance, cw, "UnHealthyHostCount", statistic='Minimum', comparison="<=", **elb_args)
 
 
 
