@@ -125,7 +125,6 @@ def apply_alarms(instance_id, cloudwatch_connection, instance_metrics,
             pass
         else:
             metric = cloudwatch_connection.list_metrics(dimensions={dimension_name:instance_id}, metric_name=instance_metric)
-            print "Metric:", metric
             if len(metric) > 0:
                 print "Active alarms", len(active_alarms)
                 print "Creating metric for %s (%s): " % (instance_id,metric_name), metric[0]
@@ -168,10 +167,10 @@ if __name__ == '__main__':
         # Investigate: FreeableMemory
 
     # ELB
-    elb_args = { "prefix": "elb", "dimension_name": "LoadBalancerName", "active_alarms": active_alarms }
+    elb_args = { "prefix": "elb", "dimension_name": "LoadBalancerName", "active_alarms": active_alarms, "evaluation_periods": 2 }
     for elb_instance in get_elb_instances(profile_name):
-        print "Instance:", elb_instance
-        apply_alarms(elb_instance, cw, "UnHealthyHostCount", statistic='Minimum', comparison="<=", **elb_args)
+        apply_alarms(elb_instance, cw, "UnHealthyHostCount", statistic='Minimum', comparison=">=", **elb_args)
+        apply_alarms(elb_instance, cw, "HealthyHostCount", statistic='Maximum', comparison="<", threshold=2, **elb_args)
 
 
 
