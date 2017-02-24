@@ -163,7 +163,7 @@ if __name__ == '__main__':
         apply_alarms(db_instance, cw, "SwapUsage", threshold='1gb', **rds_args)
         apply_alarms(db_instance, cw, "CPUCreditBalance", comparison="<=", threshold=50, **rds_args)
         apply_alarms(db_instance, cw, "FreeStorageSpace", comparison="<=", threshold=500, **rds_args)
-        apply_alarms(db_instance, cw, "DatabaseConnections", threshold=100, **rds_args)
+        apply_alarms(db_instance, cw, "DatabaseConnections", threshold=200, **rds_args)
         # Investigate: FreeableMemory
 
     # ELB
