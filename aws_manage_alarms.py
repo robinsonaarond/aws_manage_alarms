@@ -9,17 +9,27 @@ import boto.elasticache
 import boto.rds
 import sys
 import time
+import logging
 
 # Handle arguments
 parser = argparse.ArgumentParser(description='Automatically create alerts')
 parser.add_argument('-p', '--profile-name', default='default')
 parser.add_argument('-r', '--aws-region', default='us-west-2')
 parser.add_argument('-s', '--sns-topic')
+parser.add_argument('-v', '--verbose', help="Set logging level to INFO", action="store_true")
+parser.add_argument('-vv', '--verbose-debug', help="Set logging level to DEBUG", action="store_true")
 args = parser.parse_args()
 
 profile_name = args.profile_name
 region       = args.aws_region
 sns_topic    = args.sns_topic
+
+if args.verbose:
+    logging.basicConfig(stream=sys.stderr, level=logging.INFO)
+elif args.verbose_debug:
+    logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
+else:
+    logging.basicConfig(stream=sys.stderr, level=logging.WARN)
 
 def metric_human_readable(metric):
     # Support k/K/kb/KB = Kilobyte, m/M/mb/MB = Megabyte, g/G/gb/GB = Gigabyte, t/T/tb/TB = Terabyte
@@ -41,7 +51,7 @@ def metric_human_readable(metric):
         elif unit in [ 't', 'tb' ]:
             return int(digits * 1099511627776)
         else:
-            print "Unit not recognized: %s" % unit
+            logging.error("Unit not recognized: %s" % unit)
             return None
     else:
         # It's already in the format we want if it's all numbers; just convert to int
@@ -117,24 +127,26 @@ def apply_alarms(instance_id, cloudwatch_connection, instance_metrics,
             metric_name = "%s-%s%s-%s" % (profile_name,prefix,instance_id,instance_metric)
 
         if metric_name in active_alarms and not force:
-            print "Metric %s is already configured" % metric_name
+            logging.info("Metric %s is already configured" % metric_name)
         elif "test" in metric_name.lower():
-            print "Not creating %s; is a test box." % metric_name
+            logging.info("Not creating %s; is a test box." % metric_name)
+        elif "Packer" in metric_name:
+            logging.info("Not creating %s; is a transient Packer box." % metric_name)
         elif all(x in metric_name.lower() for x in ["ec2", "i-"]):
-            #print "EC2 instance %s is unnamed.  Not important enough to check." % metric_name
-            pass
+            logging.info("EC2 instance %s is unnamed.  Not important enough to check." % metric_name)
         else:
             metric = cloudwatch_connection.list_metrics(dimensions={dimension_name:instance_id}, metric_name=instance_metric)
             if len(metric) > 0:
-                print "Active alarms", len(active_alarms)
-                print "Creating metric for %s (%s): " % (instance_id,metric_name), metric[0]
+                logging.info("Active alarms %s" % len(active_alarms))
+                logging.warn("Creating metric for %s (%s): %s" % (instance_id,metric_name,metric[0]))
                 metric[0].create_alarm(name=metric_name,
                                        comparison=comparison,
                                        threshold=threshold,
                                        period=period,
                                        evaluation_periods=evaluation_periods,
                                        statistic=statistic,
-                                       alarm_actions=[sns_topic])
+                                       alarm_actions=[sns_topic],
+                                       ok_actions=[sns_topic])
                 time.sleep(0.5)
 
 
@@ -142,7 +154,7 @@ if __name__ == '__main__':
     cw  = boto.ec2.cloudwatch.connect_to_region(region,profile_name=profile_name)
 
     active_alarms = get_alarms(cw)
-    print "Got %s alarms already configured." % len(active_alarms)
+    logging.warn("Got %s alarms already configured." % len(active_alarms))
 
     # EC2 Instances
     # Note: DiskSpaceUtilization is a custom metric; you'd need to roll your own to get that.
@@ -174,5 +186,6 @@ if __name__ == '__main__':
         apply_alarms(elb_instance, cw, "UnHealthyHostCount", statistic='Minimum', comparison=">=", **elb_args)
         apply_alarms(elb_instance, cw, "HealthyHostCount", statistic='Maximum', comparison="<", threshold=2, **elb_args)
 
+    logging.warn("No other alarms to create.")
 
 
