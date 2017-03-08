@@ -8,4 +8,4 @@ This script currently finds each EC2, RDS, and Elasticache instance and automati
 This script depends on Boto and you having your AWS credentials in ~/.aws/credentials
 
 Example command:
-```aws_manage_alarms.py --profile "<aws_profile>" -r "<region>" -s "<sns_Topic_arn>"```
+```aws_manage_alarms.py --profile "<aws_profile>" -r "<region>" -s "<sns_topic_arn>"```
