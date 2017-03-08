@@ -151,7 +151,8 @@ if __name__ == '__main__':
         apply_alarms(instance_id, cw, "CPUCreditBalance", comparison="<=", threshold=50, **ec2_args)
         apply_alarms(instance_id, cw, "StatusCheckFailed", **ec2_args)
         apply_alarms(instance_id, cw, "MemoryUtilization", threshold=80, **ec2_args)
-        apply_alarms(instance_id, cw, "DiskSpaceUtilization", prefix="ec2", active_alarms=active_alarms, threshold=80)
+        apply_alarms(instance_id, cw, "CPUUtilization", threshold=90, **ec2_args)
+        apply_alarms(instance_id, cw, "DiskSpaceUtilization", threshold=80, **ec2_args)
     
     # Elasticache
     for cluster_instance in get_elasticache_instances(profile_name):
@@ -164,6 +165,7 @@ if __name__ == '__main__':
         apply_alarms(db_instance, cw, "CPUCreditBalance", comparison="<=", threshold=50, **rds_args)
         apply_alarms(db_instance, cw, "FreeStorageSpace", comparison="<=", threshold=500, **rds_args)
         apply_alarms(db_instance, cw, "DatabaseConnections", threshold=200, **rds_args)
+        apply_alarms(db_instance, cw, "CPUUtilization", threshold=90, **rds_args)
         # Investigate: FreeableMemory
 
     # ELB
