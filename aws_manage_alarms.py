@@ -57,6 +57,59 @@ def metric_human_readable(metric):
         # It's already in the format we want if it's all numbers; just convert to int
         return int(metric)
 
+def instance_stats(instance_type):
+    ec2_instance_types = {
+        "t2.nano"     : { "vCPU":  1, "cph":    3, "Memory" :  0.5 },
+        "t2.micro"    : { "vCPU":  1, "cph":    6, "Memory" :    1 },
+        "t2.small"    : { "vCPU":  1, "cph":   12, "Memory" :    4 },
+        "t2.medium"   : { "vCPU":  2, "cph":   24, "Memory" :    4 },
+        "t2.large"    : { "vCPU":  2, "cph":   36, "Memory" :    8 },
+        "t2.xlarge"   : { "vCPU":  4, "cph":   54, "Memory" :   16 },
+        "t2.2xlarge"  : { "vCPU":  8, "cph":   81, "Memory" :   32 },
+        "m3.medium"   : { "vCPU":  2, "cph": None, "Memory" : 3.75 },
+        "m3.large"    : { "vCPU":  2, "cph": None, "Memory" :  7.5 },
+        "m3.xlarge"   : { "vCPU":  2, "cph": None, "Memory" :   15 },
+        "m3.2xlarge"  : { "vCPU":  2, "cph": None, "Memory" :   30 },
+        "m4.large"    : { "vCPU":  2, "cph": None, "Memory" :    8 },
+        "m4.xlarge"   : { "vCPU":  2, "cph": None, "Memory" :   16 },
+        "m4.2xlarge"  : { "vCPU":  2, "cph": None, "Memory" :   32 },
+        "m4.4xlarge"  : { "vCPU":  2, "cph": None, "Memory" :   64 },
+        "m4.10xlarge" : { "vCPU":  2, "cph": None, "Memory" :  160 },
+        "m4.16xlarge" : { "vCPU":  2, "cph": None, "Memory" :  256 },
+        "c3.large"    : { "vCPU":  2, "cph": None, "Memory" : 3.75 },
+        "c3.xlarge"   : { "vCPU":  4, "cph": None, "Memory" :  7.5 },
+        "c3.2xlarge"  : { "vCPU":  8, "cph": None, "Memory" :   15 },
+        "c3.4xlarge"  : { "vCPU": 16, "cph": None, "Memory" :   30 },
+        "c3.8xlarge"  : { "vCPU": 32, "cph": None, "Memory" :   60 },
+        "c4.large"    : { "vCPU":  2, "cph": None, "Memory" : 3.75 },
+        "c4.xlarge"   : { "vCPU":  4, "cph": None, "Memory" :  7.5 },
+        "c4.2xlarge"  : { "vCPU":  8, "cph": None, "Memory" :   15 },
+        "c4.4xlarge"  : { "vCPU": 16, "cph": None, "Memory" :   30 },
+        "c4.8xlarge"  : { "vCPU": 36, "cph": None, "Memory" :   60 },
+        "r3.large"    : { "vCPU":  2, "cph": None, "Memory" :15.25 },
+        "r3.xlarge"   : { "vCPU":  4, "cph": None, "Memory" : 30.5 },
+        "r3.2xlarge"  : { "vCPU":  8, "cph": None, "Memory" :   61 },
+        "r3.4xlarge"  : { "vCPU": 16, "cph": None, "Memory" :  122 },
+        "r3.8xlarge"  : { "vCPU": 32, "cph": None, "Memory" :  244 },
+        "r4.large"    : { "vCPU":  2, "cph": None, "Memory" :15.25 },
+        "r4.xlarge"   : { "vCPU":  4, "cph": None, "Memory" : 30.5 },
+        "r4.2xlarge"  : { "vCPU":  8, "cph": None, "Memory" :   61 },
+        "r4.4xlarge"  : { "vCPU": 16, "cph": None, "Memory" :  122 },
+        "r4.8xlarge"  : { "vCPU": 32, "cph": None, "Memory" :  244 },
+        "r4.16xlarge" : { "vCPU": 64, "cph": None, "Memory" :  488 },
+        "x1.16xlarge" : { "vCPU": 64, "cph": None, "Memory" :  976 },
+        "x1.32xlarge" : { "vCPU":128, "cph": None, "Memory" : 1952 }
+    }
+    class instance_obj():
+        pass
+    i = instance_obj()
+    i.cpu = ec2_instance_types[instance_type]["vCPU"]
+    i.cph = ec2_instance_types[instance_type]["cph"]
+    if i.cph is None:
+        i.cph = 50
+    i.ram = ec2_instance_types[instance_type]["Memory"]
+    return i
+
 # Get list of instances
 def get_ec2_instances(profile_name):
     ec2 = boto.ec2.connect_to_region(region,profile_name=profile_name)
@@ -65,30 +118,39 @@ def get_ec2_instances(profile_name):
     for reservation in reservations:
         for instance in reservation.instances:
             try:
-                inst.append([instance.id, instance.tags['Name']])
+                instance.name = instance.tags['Name']
             except:
-                inst.append([instance.id])
+                instance.name = None
+            instance.nametag = instance.id
+            inst.append(instance)
     return inst
 
 def get_elasticache_instances(profile_name):
     ec = boto.elasticache.connect_to_region(region,profile_name=profile_name)
     ec_clusters = []
+    class ec_obj():
+        pass
     for cluster in ec.describe_cache_clusters().values()[0]['DescribeCacheClustersResult']['CacheClusters']:
-        ec_clusters.append(str(cluster['CacheClusterId']))
+        c = ec_obj()
+        c.nametag = str(cluster['CacheClusterId'])
+        c.cluster = cluster
+        ec_clusters.append(c)
     return ec_clusters
 
 def get_rds_instances(profile_name):
     rds = boto.rds.connect_to_region(region,profile_name=profile_name)
     rds_instances = []
     for instance in rds.get_all_dbinstances():
-        rds_instances.append(str(instance.id))
+        instance.nametag = str(instance.id)
+        rds_instances.append(instance)
     return rds_instances
 
 def get_elb_instances(profile_name):
     elb = boto.ec2.elb.connect_to_region(region,profile_name=profile_name)
     elb_instances = []
     for instance in elb.get_all_load_balancers():
-        elb_instances.append(instance.name)
+        instance.nametag = instance.name
+        elb_instances.append(instance)
     return elb_instances
 
 def get_alarms(cloudwatch_connection):
@@ -113,7 +175,7 @@ def apply_alarms(instance_id, cloudwatch_connection, instance_metrics,
         prefix = '%s-' % prefix
 
     if len(active_alarms) == 0:
-        active_alarms = get_alarms()
+        active_alarms = get_alarms(cw)
 
     threshold = metric_human_readable(threshold)
 
@@ -149,7 +211,6 @@ def apply_alarms(instance_id, cloudwatch_connection, instance_metrics,
                                        ok_actions=[sns_topic])
                 time.sleep(0.5)
 
-
 if __name__ == '__main__':
     cw  = boto.ec2.cloudwatch.connect_to_region(region,profile_name=profile_name)
 
@@ -160,31 +221,38 @@ if __name__ == '__main__':
     # Note: DiskSpaceUtilization is a custom metric; you'd need to roll your own to get that.
     ec2_args = { "prefix": "ec2", "active_alarms": active_alarms }
     for instance_id in get_ec2_instances(profile_name):
-        apply_alarms(instance_id, cw, "CPUCreditBalance", comparison="<=", threshold=50, **ec2_args)
-        apply_alarms(instance_id, cw, "StatusCheckFailed", **ec2_args)
-        apply_alarms(instance_id, cw, "MemoryUtilization", threshold=80, **ec2_args)
-        apply_alarms(instance_id, cw, "CPUUtilization", threshold=90, **ec2_args)
-        apply_alarms(instance_id, cw, "DiskSpaceUtilization", threshold=80, **ec2_args)
+        nCPU = instance_stats(instance_id.instance_type).cpu
+        cpu_credit_rate = instance_stats(instance_id.instance_type).cph
+        inst_name = instance_id.nametag
+        if instance_id.name:
+            inst_name = [ instance_id.id, instance_id.name ]
+        apply_alarms(inst_name, cw, "CPUCreditBalance", comparison="<=", threshold=10 * cpu_credit_rate, **ec2_args)
+        apply_alarms(inst_name, cw, "StatusCheckFailed", **ec2_args)
+        apply_alarms(inst_name, cw, "MemoryUtilization", threshold=80, **ec2_args)
+        apply_alarms(inst_name, cw, "CPUUtilization", threshold=90 * nCPU, **ec2_args)
+        apply_alarms(inst_name, cw, "DiskSpaceUtilization", threshold=80, **ec2_args)
     
     # Elasticache
+    ec_args = { "prefix" : "elasticache", "active_alarms" : active_alarms, "dimension_name": "CacheClusterId" }
     for cluster_instance in get_elasticache_instances(profile_name):
-        apply_alarms(cluster_instance, cw, "SwapUsage", prefix='elasticache', active_alarms=active_alarms, threshold='1gb', dimension_name='CacheClusterId')
+        apply_alarms(cluster_instance.nametag, cw, "SwapUsage", threshold='100mb', comparison=">=", **ec_args)
+        apply_alarms(cluster_instance.nametag, cw, "FreeableMemory", threshold='1gb', comparison="<=", **ec_args)
     
     # RDS
     rds_args = { "prefix": "rds", "dimension_name": "DBInstanceIdentifier", "active_alarms": active_alarms }
     for db_instance in get_rds_instances(profile_name):
-        apply_alarms(db_instance, cw, "SwapUsage", threshold='1gb', **rds_args)
-        apply_alarms(db_instance, cw, "CPUCreditBalance", comparison="<=", threshold=50, **rds_args)
-        apply_alarms(db_instance, cw, "FreeStorageSpace", comparison="<=", threshold=500, **rds_args)
-        apply_alarms(db_instance, cw, "DatabaseConnections", threshold=200, **rds_args)
-        apply_alarms(db_instance, cw, "CPUUtilization", threshold=90, **rds_args)
+        apply_alarms(db_instance.nametag, cw, "SwapUsage", threshold='1gb', **rds_args)
+        apply_alarms(db_instance.nametag, cw, "CPUCreditBalance", comparison="<=", threshold=50, **rds_args)
+        apply_alarms(db_instance.nametag, cw, "FreeStorageSpace", comparison="<=", threshold=500, **rds_args)
+        apply_alarms(db_instance.nametag, cw, "DatabaseConnections", threshold=200, **rds_args)
+        apply_alarms(db_instance.nametag, cw, "CPUUtilization", threshold=90, **rds_args)
         # Investigate: FreeableMemory
 
     # ELB
     elb_args = { "prefix": "elb", "dimension_name": "LoadBalancerName", "active_alarms": active_alarms, "evaluation_periods": 2 }
     for elb_instance in get_elb_instances(profile_name):
-        apply_alarms(elb_instance, cw, "UnHealthyHostCount", statistic='Minimum', comparison=">=", **elb_args)
-        apply_alarms(elb_instance, cw, "HealthyHostCount", statistic='Maximum', comparison="<", threshold=2, **elb_args)
+        apply_alarms(elb_instance.nametag, cw, "UnHealthyHostCount", statistic='Minimum', comparison=">=", **elb_args)
+        apply_alarms(elb_instance.nametag, cw, "HealthyHostCount", statistic='Maximum', comparison="<", threshold=2, **elb_args)
 
     logging.warn("No other alarms to create.")
 
