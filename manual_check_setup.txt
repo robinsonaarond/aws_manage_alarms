@@ -1,0 +1,33 @@
+###
+# Manual Checks
+###
+
+Our DBs are fairly static, so setting up notifications manually isn't a bad way to do it.  I wanted to document what I did here.
+
+
+
+Go to https://us-west-2.console.aws.amazon.com/rds/home
+Click on the sidebar option "Event Subscriptions"
+Create Event Subscription
+
+Name: prod-readreplica-alerts
+Send notifications to: ImprevSlack
+Source Type: Instances
+Enabled: Yes
+Event Categories: Select Specific
+    (availability, deletion, failover, failure, maintenance, read replica)
+
+Instances: Select Specific
+    (select all with -readreplica in their name)
+
+
+
+Create Event Subscription
+
+Name: prod-cluster-erros
+Send notifications to: ImprevSlack
+Source Type: DB Clusters
+Enabled: Yes
+Event Categories: Select Specific
+    (failover, failure)
+Instances: Select All
