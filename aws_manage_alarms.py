@@ -102,10 +102,15 @@ def instance_stats(instance_type):
     }
     class instance_obj():
         pass
+
+    instance_type = instance_type.replace("db.", '')
     i = instance_obj()
     i.cpu = ec2_instance_types[instance_type]["vCPU"]
     i.cph = ec2_instance_types[instance_type]["cph"]
-    if i.cph is None:
+    # I found that my r3.large instances don't have CPUCreditBalances, so I needed
+    # to not give them a default amount.  Added check so only RDS inst. w/cph will 
+    # get the alarm.
+    if i.cph is None and not any(word in instance_type for word in ['r3.large']):
         i.cph = 50
     i.ram = ec2_instance_types[instance_type]["Memory"]
     return i
@@ -242,7 +247,8 @@ if __name__ == '__main__':
     rds_args = { "prefix": "rds", "dimension_name": "DBInstanceIdentifier", "active_alarms": active_alarms }
     for db_instance in get_rds_instances(profile_name):
         apply_alarms(db_instance.nametag, cw, "SwapUsage", threshold='1gb', **rds_args)
-        apply_alarms(db_instance.nametag, cw, "CPUCreditBalance", comparison="<=", threshold=50, **rds_args)
+        if instance_stats(db_instance.instance_class).cph:
+            apply_alarms(db_instance.nametag, cw, "CPUCreditBalance", comparison="<=", threshold=50, **rds_args)
         apply_alarms(db_instance.nametag, cw, "FreeStorageSpace", comparison="<=", threshold=500, **rds_args)
         apply_alarms(db_instance.nametag, cw, "DatabaseConnections", threshold=200, **rds_args)
         apply_alarms(db_instance.nametag, cw, "CPUUtilization", threshold=90, **rds_args)
