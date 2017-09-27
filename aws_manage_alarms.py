@@ -258,8 +258,9 @@ if __name__ == '__main__':
     # ELB
     elb_args = { "prefix": "elb", "dimension_name": "LoadBalancerName", "active_alarms": active_alarms, "evaluation_periods": 2 }
     for elb_instance in get_elb_instances(profile_name):
-        apply_alarms(elb_instance.nametag, cw, "UnHealthyHostCount", statistic='Minimum', comparison=">=", **elb_args)
-        apply_alarms(elb_instance.nametag, cw, "HealthyHostCount", statistic='Maximum', comparison="<", threshold=2, **elb_args)
+        if "AppELBTes" not in elb_instance.nametag:
+            apply_alarms(elb_instance.nametag, cw, "UnHealthyHostCount", statistic='Minimum', comparison=">=", **elb_args)
+            apply_alarms(elb_instance.nametag, cw, "HealthyHostCount", statistic='Maximum', comparison="<", threshold=2, **elb_args)
 
     logging.warn("No other alarms to create.")
 
