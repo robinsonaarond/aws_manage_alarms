@@ -249,7 +249,7 @@ if __name__ == '__main__':
         apply_alarms(db_instance.nametag, cw, "SwapUsage", threshold='1gb', **rds_args)
         if instance_stats(db_instance.instance_class).cph:
             apply_alarms(db_instance.nametag, cw, "CPUCreditBalance", comparison="<=", threshold=50, **rds_args)
-        apply_alarms(db_instance.nametag, cw, "FreeStorageSpace", comparison="<=", threshold=500, **rds_args)
+        apply_alarms(db_instance.nametag, cw, "FreeStorageSpace", comparison="<=", threshold='1gb', **rds_args)
         apply_alarms(db_instance.nametag, cw, "DatabaseConnections", threshold=200, **rds_args)
         apply_alarms(db_instance.nametag, cw, "CPUUtilization", threshold=90, **rds_args)
         apply_alarms(db_instance.nametag, cw, "ReplicaLag", threshold=1800, **rds_args) # Already only applies to RDS instances who actually _have_ ReplicaLag.  Threshold In seconds.
