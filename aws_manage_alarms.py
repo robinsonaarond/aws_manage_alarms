@@ -243,6 +243,8 @@ if __name__ == '__main__':
         # I was getting alarms in swap usage when we weren't pegged for memory.  BytesUsedForCache is a better check
         #apply_alarms(cluster_instance.nametag, cw, "SwapUsage", threshold='100mb', comparison=">=", **ec_args)
         apply_alarms(cluster_instance.nametag, cw, "BytesUsedForCache", threshold='300mb', comparison=">=", **ec_args)
+        apply_alarms(cluster_instance.nametag, cw, "Evictions", threshold='20', comparison=">=", **ec_args)
+        apply_alarms(cluster_instance.nametag, cw, "CurrConnections", threshold='250', comparison=">=", **ec_args)
         apply_alarms(cluster_instance.nametag, cw, "FreeableMemory", threshold='1gb', comparison="<=", **ec_args)
     
     # RDS
