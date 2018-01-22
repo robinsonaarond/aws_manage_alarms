@@ -240,7 +240,9 @@ if __name__ == '__main__':
     # Elasticache
     ec_args = { "prefix" : "elasticache", "active_alarms" : active_alarms, "dimension_name": "CacheClusterId" }
     for cluster_instance in get_elasticache_instances(profile_name):
-        apply_alarms(cluster_instance.nametag, cw, "SwapUsage", threshold='100mb', comparison=">=", **ec_args)
+        # I was getting alarms in swap usage when we weren't pegged for memory.  BytesUsedForCache is a better check
+        #apply_alarms(cluster_instance.nametag, cw, "SwapUsage", threshold='100mb', comparison=">=", **ec_args)
+        apply_alarms(cluster_instance.nametag, cw, "BytesUsedForCache", threshold='300mb', comparison=">=", **ec_args)
         apply_alarms(cluster_instance.nametag, cw, "FreeableMemory", threshold='1gb', comparison="<=", **ec_args)
     
     # RDS
