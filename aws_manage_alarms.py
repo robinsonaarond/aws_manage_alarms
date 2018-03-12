@@ -216,6 +216,14 @@ def apply_alarms(instance_id, cloudwatch_connection, instance_metrics,
                                        ok_actions=[sns_topic])
                 time.sleep(0.5)
 
+def get_ebs_volumes(profile_name):
+    ec2 = boto.ec2.connect_to_region(region,profile_name=profile_name)
+    ebs_volumes = []
+    volumes = ec2.get_all_volumes()
+    for v in volumes:
+        ebs_volumes.append(v.id)
+    return ebs_volumes
+
 if __name__ == '__main__':
     cw  = boto.ec2.cloudwatch.connect_to_region(region,profile_name=profile_name)
 
@@ -238,6 +246,11 @@ if __name__ == '__main__':
         apply_alarms(inst_name, cw, "DiskSpaceUtilization", threshold=80, **ec2_args)
     
     # Elasticache
+    # EC2 local disk - EBS Volumes
+    ebs_args = { "prefix": "ebs", "active_alarms": active_alarms, "dimension_name": "VolumeId" }
+    for vol in get_ebs_volumes(profile_name):
+        apply_alarms(vol, cw, "BurstBalance", comparison="<=", threshold=60, force=True, **ebs_args)
+
     ec_args = { "prefix" : "elasticache", "active_alarms" : active_alarms, "dimension_name": "CacheClusterId" }
     for cluster_instance in get_elasticache_instances(profile_name):
         # I was getting alarms in swap usage when we weren't pegged for memory.  BytesUsedForCache is a better check
