@@ -10,6 +10,7 @@ import boto.rds
 import sys
 import time
 import logging
+import datetime
 
 # Handle arguments
 parser = argparse.ArgumentParser(description='Automatically create alerts')
@@ -224,8 +225,30 @@ def get_ebs_volumes(profile_name):
         ebs_volumes.append(v.id)
     return ebs_volumes
 
+def weekly_cleanup_insufficients(cloudwatch_connection):
+    # When a server gets deleted, the alarms will show up as INSUFFICIENT_DATA
+    # from then on.  This can happen normally as well, but it's usually
+    # transient.  This function deletes all alarms in that state, trusting
+    # that subsequent runs will add them back in.
+    day = datetime.datetime.today().weekday()
+    hour = datetime.datetime.today().hour
+    if day == 0 and hour == 8:
+        alarm_obj = cloudwatch_connection.describe_alarms()
+        #insufficient_alarms = []
+        while alarm_obj.next_token:
+            alarm_obj = cloudwatch_connection.describe_alarms(next_token=alarm_obj.next_token)
+            for a in alarm_obj:
+                if a.state_value == "INSUFFICIENT_DATA":
+                    logging.warn("Deleting alarm %s which is no longer reporting back." % a.name)
+                    a.delete()
+                    # Forgot there's a rate limit issue
+                    time.sleep(0.5)
+
 if __name__ == '__main__':
     cw  = boto.ec2.cloudwatch.connect_to_region(region,profile_name=profile_name)
+
+    # This only runs during the 8AM hour on Monday
+    weekly_cleanup_insufficients(cw)
 
     active_alarms = get_alarms(cw)
     logging.warn("Got %s alarms already configured." % len(active_alarms))
@@ -249,7 +272,7 @@ if __name__ == '__main__':
     # EC2 local disk - EBS Volumes
     ebs_args = { "prefix": "ebs", "active_alarms": active_alarms, "dimension_name": "VolumeId" }
     for vol in get_ebs_volumes(profile_name):
-        apply_alarms(vol, cw, "BurstBalance", comparison="<=", threshold=60, force=True, **ebs_args)
+        apply_alarms(vol, cw, "BurstBalance", comparison="<=", threshold=60, **ebs_args)
 
     ec_args = { "prefix" : "elasticache", "active_alarms" : active_alarms, "dimension_name": "CacheClusterId" }
     for cluster_instance in get_elasticache_instances(profile_name):
