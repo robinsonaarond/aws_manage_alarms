@@ -169,7 +169,7 @@ def get_alarms(cloudwatch_connection):
     return active_alarms
 
 def apply_alarms(instance_id, cloudwatch_connection, instance_metrics,
-                 prefix='', comparison=">=", threshold=1, period=60, 
+                 prefix='', comparison=">=", threshold=1, period=60, name="",
                  evaluation_periods=5, statistic='Average', sns_topic=sns_topic, 
                  dimension_name = 'InstanceId', active_alarms = [], force=False):
 
@@ -186,13 +186,15 @@ def apply_alarms(instance_id, cloudwatch_connection, instance_metrics,
     threshold = metric_human_readable(threshold)
 
     for instance_metric in instance_metrics:
+        if not name:
+            name = instance_metric
         if len(instance_id) > 1:
             instance_name = instance_id[1]
-            metric_name = "%s-%s%s-%s" % (profile_name,prefix,instance_name,instance_metric)
+            metric_name = "%s-%s%s-%s" % (profile_name,prefix,instance_name,name)
             instance_id = instance_id[0]
         else:
             instance_id = instance_id[0]
-            metric_name = "%s-%s%s-%s" % (profile_name,prefix,instance_id,instance_metric)
+            metric_name = "%s-%s%s-%s" % (profile_name,prefix,instance_id,name)
 
         if metric_name in active_alarms and not force:
             logging.info("Metric %s is already configured" % metric_name)
@@ -293,6 +295,7 @@ if __name__ == '__main__':
         apply_alarms(db_instance.nametag, cw, "DatabaseConnections", threshold=200, **rds_args)
         apply_alarms(db_instance.nametag, cw, "CPUUtilization", threshold=90, **rds_args)
         apply_alarms(db_instance.nametag, cw, "ReplicaLag", threshold=1800, **rds_args) # Already only applies to RDS instances who actually _have_ ReplicaLag.  Threshold In seconds.
+        apply_alarms(db_instance.nametag, cw, "ReplicaLag", comparison="<", threshold=0, name="ReplicaLag2", **rds_args) # A broken replication comes up as -1 seconds replica lag.
         # Investigate: FreeableMemory
 
     # ELB
