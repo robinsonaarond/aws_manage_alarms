@@ -293,7 +293,8 @@ if __name__ == '__main__':
             apply_alarms(db_instance.nametag, cw, "CPUCreditBalance", comparison="<=", threshold=50, **rds_args)
         apply_alarms(db_instance.nametag, cw, "FreeStorageSpace", comparison="<=", threshold='1gb', **rds_args)
         apply_alarms(db_instance.nametag, cw, "DatabaseConnections", threshold=200, **rds_args)
-        apply_alarms(db_instance.nametag, cw, "CPUUtilization", threshold=90, **rds_args)
+        # This alert was too noisy for our environment, and high CPU usage doesn't normally bring down an RDS instance
+        #apply_alarms(db_instance.nametag, cw, "CPUUtilization", threshold=90, **rds_args)
         apply_alarms(db_instance.nametag, cw, "ReplicaLag", threshold=1800, **rds_args) # Already only applies to RDS instances who actually _have_ ReplicaLag.  Threshold In seconds.
         apply_alarms(db_instance.nametag, cw, "ReplicaLag", comparison="<", threshold=0, name="ReplicaLag2", **rds_args) # A broken replication comes up as -1 seconds replica lag.
         # Investigate: FreeableMemory
