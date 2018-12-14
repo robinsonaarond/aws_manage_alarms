@@ -274,7 +274,7 @@ if __name__ == '__main__':
     # EC2 local disk - EBS Volumes
     ebs_args = { "prefix": "ebs", "active_alarms": active_alarms, "dimension_name": "VolumeId" }
     for vol in get_ebs_volumes(profile_name):
-        apply_alarms(vol, cw, "BurstBalance", comparison="<=", threshold=60, **ebs_args)
+        apply_alarms(vol, cw, "BurstBalance", comparison="<=", threshold=60, period=300, **ebs_args)
 
     ec_args = { "prefix" : "elasticache", "active_alarms" : active_alarms, "dimension_name": "CacheClusterId" }
     for cluster_instance in get_elasticache_instances(profile_name):
@@ -295,7 +295,7 @@ if __name__ == '__main__':
         apply_alarms(db_instance.nametag, cw, "DatabaseConnections", threshold=200, **rds_args)
         # This alert was too noisy for our environment, and high CPU usage doesn't normally bring down an RDS instance
         #apply_alarms(db_instance.nametag, cw, "CPUUtilization", threshold=90, **rds_args)
-        apply_alarms(db_instance.nametag, cw, "ReplicaLag", threshold=1800, **rds_args) # Already only applies to RDS instances who actually _have_ ReplicaLag.  Threshold In seconds.
+        apply_alarms(db_instance.nametag, cw, "ReplicaLag", threshold=28800, **rds_args) # Already only applies to RDS instances who actually _have_ ReplicaLag.  Threshold In seconds.
         apply_alarms(db_instance.nametag, cw, "ReplicaLag", comparison="<", threshold=0, name="ReplicaLag2", **rds_args) # A broken replication comes up as -1 seconds replica lag.
         # Investigate: FreeableMemory
 
