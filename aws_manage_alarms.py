@@ -274,7 +274,7 @@ if __name__ == '__main__':
         apply_alarms(inst_name, cw, "StatusCheckFailed", **ec2_args)
         apply_alarms(inst_name, cw, "MemoryUtilization", threshold=80, **ec2_args)
         apply_alarms(inst_name, cw, "CPUUtilization", threshold=90 * nCPU, **ec2_args)
-        apply_alarms(inst_name, cw, "DiskSpaceUtilization", threshold=80, **ec2_args)
+        apply_alarms(inst_name, cw, "DiskSpaceUtilization", threshold=50, **ec2_args)
     
     # Elasticache
     # EC2 local disk - EBS Volumes
