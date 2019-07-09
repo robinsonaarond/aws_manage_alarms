@@ -304,7 +304,7 @@ if __name__ == '__main__':
             apply_alarms(db_instance.nametag, cw, "CPUCreditBalance", comparison="<=", threshold=50, **rds_args)
         if db_instance.allocated_storage > 0:
             twenty_percent = int(db_instance.allocated_storage * 0.2)
-            apply_alarms(db_instance.nametag, cw, "FreeStorageSpace", comparison="<=", threshold='%dgb' % twenty_percent, force=True, **rds_args)
+            apply_alarms(db_instance.nametag, cw, "FreeStorageSpace", comparison="<=", threshold='%dgb' % twenty_percent, **rds_args)
         apply_alarms(db_instance.nametag, cw, "DatabaseConnections", threshold=200, **rds_args)
         # This alert was too noisy for our environment, and high CPU usage doesn't normally bring down an RDS instance
         #apply_alarms(db_instance.nametag, cw, "CPUUtilization", threshold=90, **rds_args)
