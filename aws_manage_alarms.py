@@ -305,6 +305,9 @@ if __name__ == '__main__':
         if db_instance.allocated_storage > 0:
             twenty_percent = int(db_instance.allocated_storage * 0.2)
             apply_alarms(db_instance.nametag, cw, "FreeStorageSpace", comparison="<=", threshold='%dgb' % twenty_percent, **rds_args)
+        else:
+            # I don't have an easy way to calculate this; it's based on instance size, and a t2.small regularly has 25GB free
+            apply_alarms(db_instance.nametag, cw, "FreeLocalStorage", comparison="<=", threshold='15gb', **rds_args)
         apply_alarms(db_instance.nametag, cw, "DatabaseConnections", threshold=200, **rds_args)
         # This alert was too noisy for our environment, and high CPU usage doesn't normally bring down an RDS instance
         #apply_alarms(db_instance.nametag, cw, "CPUUtilization", threshold=90, **rds_args)
