@@ -25,7 +25,7 @@ def post_to_slack(msg, channel_webhook = slack_channel):
     try:
         print("Posting to %s" % channel_webhook)
         headers = { 'Content-type' : 'application/json', 'Accept' : 'text/plain' }
-        r = requests.put(channel_webhook, data=json.dumps({"text":msg,"icon_emoji":"ghost"}), headers=headers)
+        r = requests.post(channel_webhook, data=json.dumps({"text":msg,"icon_emoji":"ghost"}), headers=headers)
     except Exception as e:
         print(e)
 

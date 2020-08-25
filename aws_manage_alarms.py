@@ -67,6 +67,13 @@ def instance_stats(instance_type):
         "t2.large"    : { "vCPU":  2, "cph":   36, "Memory" :    8 },
         "t2.xlarge"   : { "vCPU":  4, "cph":   54, "Memory" :   16 },
         "t2.2xlarge"  : { "vCPU":  8, "cph":   81, "Memory" :   32 },
+        "t3.nano"     : { "vCPU":  1, "cph":    3, "Memory" :  0.5 },
+        "t3.micro"    : { "vCPU":  1, "cph":    6, "Memory" :    1 },
+        "t3.small"    : { "vCPU":  1, "cph":   12, "Memory" :    4 },
+        "t3.medium"   : { "vCPU":  2, "cph":   24, "Memory" :    4 },
+        "t3.large"    : { "vCPU":  2, "cph":   36, "Memory" :    8 },
+        "t3.xlarge"   : { "vCPU":  4, "cph":   54, "Memory" :   16 },
+        "t3.2xlarge"  : { "vCPU":  8, "cph":   81, "Memory" :   32 },
         "m3.medium"   : { "vCPU":  2, "cph": None, "Memory" : 3.75 },
         "m3.large"    : { "vCPU":  2, "cph": None, "Memory" :  7.5 },
         "m3.xlarge"   : { "vCPU":  2, "cph": None, "Memory" :   15 },
@@ -109,6 +116,12 @@ def instance_stats(instance_type):
         "r4.4xlarge"  : { "vCPU": 16, "cph": None, "Memory" :  122 },
         "r4.8xlarge"  : { "vCPU": 32, "cph": None, "Memory" :  244 },
         "r4.16xlarge" : { "vCPU": 64, "cph": None, "Memory" :  488 },
+        "r5.large"    : { "vCPU":  2, "cph": None, "Memory" :15.25 },
+        "r5.xlarge"   : { "vCPU":  4, "cph": None, "Memory" : 30.5 },
+        "r5.2xlarge"  : { "vCPU":  8, "cph": None, "Memory" :   61 },
+        "r5.4xlarge"  : { "vCPU": 16, "cph": None, "Memory" :  122 },
+        "r5.8xlarge"  : { "vCPU": 32, "cph": None, "Memory" :  244 },
+        "r5.16xlarge" : { "vCPU": 64, "cph": None, "Memory" :  488 },
         "x1.16xlarge" : { "vCPU": 64, "cph": None, "Memory" :  976 },
         "x1.32xlarge" : { "vCPU":128, "cph": None, "Memory" : 1952 }
     }
@@ -304,13 +317,16 @@ if __name__ == '__main__':
             apply_alarms(db_instance.nametag, cw, "CPUCreditBalance", comparison="<=", threshold=50, **rds_args)
         if db_instance.allocated_storage > 0:
             twenty_percent = int(db_instance.allocated_storage * 0.2)
-            apply_alarms(db_instance.nametag, cw, "FreeStorageSpace", comparison="<=", threshold='%dgb' % twenty_percent, **rds_args)
+            ten_percent = int(db_instance.allocated_storage * 0.1)
+            apply_alarms(db_instance.nametag, cw, "FreeStorageSpace", comparison="<=", threshold='%dgb' % ten_percent, **rds_args)
         else:
             # I don't have an easy way to calculate this; it's based on instance size, and a t2.small regularly has 25GB free
             apply_alarms(db_instance.nametag, cw, "FreeLocalStorage", comparison="<=", threshold='15gb', **rds_args)
-        apply_alarms(db_instance.nametag, cw, "DatabaseConnections", threshold=200, **rds_args)
-        # This alert was too noisy for our environment, and high CPU usage doesn't normally bring down an RDS instance
-        #apply_alarms(db_instance.nametag, cw, "CPUUtilization", threshold=90, **rds_args)
+
+        available_memory_gb = instance_stats(db_instance.instance_class).ram
+        # 90% of the aws calculation for default connection maximum
+        threshold = ((available_memory_gb * 1024 * 1024 * 1024) / 12582880) * 0.9
+        apply_alarms(db_instance.nametag, cw, "DatabaseConnections", threshold=threshold, **rds_args)
         apply_alarms(db_instance.nametag, cw, "ReplicaLag", threshold=28800, **rds_args) # Already only applies to RDS instances who actually _have_ ReplicaLag.  Threshold In seconds.
         apply_alarms(db_instance.nametag, cw, "ReplicaLag", comparison="<", threshold=0, name="ReplicaLag2", **rds_args) # A broken replication comes up as -1 seconds replica lag.
         # Investigate: FreeableMemory
@@ -318,7 +334,7 @@ if __name__ == '__main__':
     # ELB
     elb_args = { "prefix": "elb", "dimension_name": "LoadBalancerName", "active_alarms": active_alarms, "evaluation_periods": 2 }
     for elb_instance in get_elb_instances(profile_name):
-        if "AppELBTes" not in elb_instance.nametag:
+        if "AppELBTes" not in elb_instance.nametag and "gonefishing" not in elb_instance.nametag:
             apply_alarms(elb_instance.nametag, cw, "UnHealthyHostCount", statistic='Minimum', comparison=">=", **elb_args)
             apply_alarms(elb_instance.nametag, cw, "HealthyHostCount", statistic='Maximum', comparison="<", threshold=2, **elb_args)
 
