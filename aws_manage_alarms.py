@@ -337,6 +337,7 @@ if __name__ == '__main__':
         if "AppELBTes" not in elb_instance.nametag and "gonefishing" not in elb_instance.nametag:
             apply_alarms(elb_instance.nametag, cw, "UnHealthyHostCount", statistic='Minimum', comparison=">=", **elb_args)
             apply_alarms(elb_instance.nametag, cw, "HealthyHostCount", statistic='Maximum', comparison="<", threshold=2, **elb_args)
+            apply_alarms(elb_instance.nametag, cw, "HTTPCode_Backend_5XX", statistic='SampleCount', comparison=">", threshold=100, **elb_args)
 
     logging.warn("No other alarms to create.")
 
