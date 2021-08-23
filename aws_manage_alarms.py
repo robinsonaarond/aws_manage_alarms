@@ -322,13 +322,12 @@ if __name__ == '__main__':
         else:
             # I don't have an easy way to calculate this; it's based on instance size, and a t2.small regularly has 25GB free
             apply_alarms(db_instance.nametag, cw, "FreeLocalStorage", comparison="<=", threshold='15gb', **rds_args)
+        apply_alarms(db_instance.nametag, cw, "EngineUptime", comparison="<=", threshold='50000', **rds_args)
 
         available_memory_gb = instance_stats(db_instance.instance_class).ram
         # 90% of the aws calculation for default connection maximum
         threshold = ((available_memory_gb * 1024 * 1024 * 1024) / 12582880) * 0.9
         apply_alarms(db_instance.nametag, cw, "DatabaseConnections", threshold=threshold, **rds_args)
-        apply_alarms(db_instance.nametag, cw, "ReplicaLag", threshold=28800, **rds_args) # Already only applies to RDS instances who actually _have_ ReplicaLag.  Threshold In seconds.
-        apply_alarms(db_instance.nametag, cw, "ReplicaLag", comparison="<", threshold=0, name="ReplicaLag2", **rds_args) # A broken replication comes up as -1 seconds replica lag.
         # Investigate: FreeableMemory
 
     # ELB
