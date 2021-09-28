@@ -313,7 +313,7 @@ if __name__ == '__main__':
     rds_args = { "prefix": "rds", "dimension_name": "DBInstanceIdentifier", "active_alarms": active_alarms }
     for db_instance in get_rds_instances(profile_name):
         apply_alarms(db_instance.nametag, cw, "SwapUsage", threshold='1gb', **rds_args)
-        apply_alarms(db_instance.nametag, cw, "CPUUtilization", threshold=80, force=True, **rds_args)
+        apply_alarms(db_instance.nametag, cw, "CPUUtilization", threshold=80, **rds_args)
         if instance_stats(db_instance.instance_class).cph:
             apply_alarms(db_instance.nametag, cw, "CPUCreditBalance", comparison="<=", threshold=50, **rds_args)
         if db_instance.allocated_storage > 0:
